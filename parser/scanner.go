@@ -124,8 +124,11 @@ func (s *Scanner) ConsumeRegex(expr string) string {
 }
 
 func (s *Scanner) updateLinePosition() {
-
-	before := s.input[0 : s.index+1] // +1 to include \n
+	tgt := s.index + 1
+	if tgt > len(s.input) {
+		tgt = len(s.input)
+	}
+	before := s.input[0:tgt] // +1 to include \n
 	lineStart := strings.LastIndex(before, "\n")
 	if lineStart == -1 {
 		lineStart = 0
