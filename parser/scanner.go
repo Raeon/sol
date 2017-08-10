@@ -124,18 +124,26 @@ func (s *Scanner) ConsumeRegex(expr string) string {
 }
 
 func (s *Scanner) updateLinePosition() {
-	tgt := s.index + 1
-	if tgt > len(s.input) {
-		tgt = len(s.input)
+
+	// target shouldnt be higher than len(s.input)
+	target := s.index
+	if target > len(s.input) {
+		target = len(s.input)
 	}
-	before := s.input[0:tgt] // +1 to include \n
-	lineStart := strings.LastIndex(before, "\n")
+
+	// get everything up to the cursor (exclusive)
+	before := s.input[0:target]
+
+	// get the index where the current line started
+	lineStart := strings.LastIndex(before, "\n") + 1
 	if lineStart == -1 {
 		lineStart = 0
 	}
 
-	s.lineNumber = 1 + strings.Count(before, "\n")
-	s.lineIndex = 1 + s.index - lineStart
+	// calculate line number and index,
+	// both offset by +1 for human readability
+	s.lineNumber = strings.Count(before, "\n") + 1
+	s.lineIndex = s.index - lineStart + 1
 }
 
 func (s *Scanner) LineNumber() int {

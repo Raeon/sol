@@ -35,7 +35,7 @@ func TestRemainder(t *testing.T) {
 		s := NewScanner(tt.input)
 		s.index = tt.index
 		if s.Remainder() != tt.expected {
-			t.Fatalf("TestRemainder[%d]: input=%s index=%d got=%s expected=%s",
+			t.Fatalf("TestRemainder[%d]: input=%d index=%d got=%s expected=%s",
 				i, tt.index, tt.index, s.Remainder(), tt.expected)
 		}
 	}
@@ -207,10 +207,14 @@ func TestLinePosition(t *testing.T) {
 		lineNumber int
 		lineIndex  int
 	}{
-		{"this\nis\na\nstring", 0, 1, 1},
-		{"this\nis\na\nstring", 4, 2, 1},
-		{"this\nis\na\nstring", 5, 2, 2},
-		{"this\nis\na\nstring", 15, 4, 7},
+		{"this\nis\na\nstring", 0, 1, 1}, // t
+		{"this\nis\na\nstring", 1, 1, 2}, // h
+		{"this\nis\na\nstring", 2, 1, 3}, // i
+		{"this\nis\na\nstring", 3, 1, 4}, // s
+		{"this\nis\na\nstring", 4, 1, 5}, // \n
+		{"this\nis\na\nstring", 5, 2, 1}, // i
+		{"this\nis\na\nstring", 8, 3, 1}, // a
+		{"this\nis\na\nstring", 15, 4, 6},
 	}
 
 	for i, tt := range tests {
