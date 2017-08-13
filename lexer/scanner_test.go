@@ -1,4 +1,4 @@
-package parser
+package lexer
 
 import "testing"
 
@@ -159,16 +159,26 @@ func TestConsumeString(t *testing.T) {
 		first     string
 		second    string
 		remainder string
+		fail      bool
 	}{
-		{"this is a string", "this ", "is ", "a string"},
-		{"this is a string", "nomatch", "this ", "is a string"},
+		{"my input string", "my", " input", " string", false},
+		{"this is a string", "this ", "is ", "a string", false},
+		{"this is a string", "nomatch", "this ", "is a string", true},
 	}
 
 	for i, tt := range tests {
 		s := NewScanner(tt.input)
-		s.ConsumeString(tt.first)
-		s.ConsumeString(tt.second)
+		first := s.ConsumeString(tt.first)
+		second := s.ConsumeString(tt.second)
 		remainder := s.Remainder()
+		if !tt.fail && first != tt.first {
+			t.Fatalf("TestConsumeString[%d]: first got=%s expected=%s",
+				i, first, tt.first)
+		}
+		if !tt.fail && second != tt.second {
+			t.Fatalf("TestConsumeString[%d]: second got=%s expected=%s",
+				i, second, tt.second)
+		}
 		if remainder != tt.remainder {
 			t.Fatalf("TestConsumeString[%d]: got=%s expected=%s",
 				i, remainder, tt.remainder)
@@ -183,6 +193,7 @@ func TestMatchRegex(t *testing.T) {
 		index    int
 		expected int
 	}{
+		{"this is a string", "[\t\n\r\\ ]+", 0, 0},
 		{"this is a string", "(this)", 0, 4},
 		{"this is a string", "else", 0, 0},
 		{"this is a string", ".{0,4} is", 0, 7},
@@ -207,14 +218,14 @@ func TestLinePosition(t *testing.T) {
 		lineNumber int
 		lineIndex  int
 	}{
-		{"this\nis\na\nstring", 0, 1, 1}, // t
-		{"this\nis\na\nstring", 1, 1, 2}, // h
-		{"this\nis\na\nstring", 2, 1, 3}, // i
-		{"this\nis\na\nstring", 3, 1, 4}, // s
-		{"this\nis\na\nstring", 4, 1, 5}, // \n
-		{"this\nis\na\nstring", 5, 2, 1}, // i
-		{"this\nis\na\nstring", 8, 3, 1}, // a
-		{"this\nis\na\nstring", 15, 4, 6},
+		{"this\nis\na\nstring", 0, 1, 1},  // t
+		{"this\nis\na\nstring", 1, 1, 2},  // h
+		{"this\nis\na\nstring", 2, 1, 3},  // i
+		{"this\nis\na\nstring", 3, 1, 4},  // s
+		{"this\nis\na\nstring", 4, 1, 5},  // \n
+		{"this\nis\na\nstring", 5, 2, 1},  // i
+		{"this\nis\na\nstring", 8, 3, 1},  // a
+		{"this\nis\na\nstring", 15, 4, 6}, // EOF
 	}
 
 	for i, tt := range tests {

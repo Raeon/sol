@@ -1,4 +1,4 @@
-package parser
+package lexer
 
 import (
 	"regexp"
@@ -84,6 +84,12 @@ func (s *Scanner) Pop() bool {
 	return false
 }
 
+func (s *Scanner) Discard() {
+	if s.stack != nil {
+		s.stack = s.stack.next
+	}
+}
+
 func (s *Scanner) stackSize() int {
 	cur := s.stack
 	count := 0
@@ -113,9 +119,14 @@ func (s *Scanner) ConsumeString(str string) string {
 }
 
 func (s *Scanner) MatchRegex(expr string) int {
-	reg := regexp.MustCompile(expr)
-	matched := reg.FindString(s.Remainder())
-	return len(matched)
+	reg := regexp.MustCompile("^" + expr)
+	rem := s.Remainder()
+	match := reg.FindString(rem)
+	matchLen := len(match)
+	if rem[:matchLen] != match {
+		return 0
+	}
+	return matchLen
 }
 
 func (s *Scanner) ConsumeRegex(expr string) string {
