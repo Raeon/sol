@@ -2,7 +2,6 @@ package ast
 
 import (
 	"fmt"
-	"sol/runtime"
 )
 
 type IdentifierExpression struct {
@@ -10,12 +9,7 @@ type IdentifierExpression struct {
 }
 
 func (e *IdentifierExpression) ToString() string {
-	return string(e.Literal)
-}
-
-func (e *IdentifierExpression) EvaluateExpr(*runtime.Scope) *runtime.Object {
-	// TODO: get value for this identifier from scope
-	return nil
+	return e.Literal
 }
 
 type IntegerExpression struct {
@@ -26,11 +20,6 @@ func (e *IntegerExpression) ToString() string {
 	return e.Literal
 }
 
-func (e *IntegerExpression) EvaluateExpr(*runtime.Scope) *runtime.Object {
-	// TODO: return runtime number
-	return nil
-}
-
 type InfixExpression struct {
 	Left     Expression
 	Operator string
@@ -38,18 +27,20 @@ type InfixExpression struct {
 }
 
 func (e *InfixExpression) ToString() string {
-	return fmt.Sprintf(
-		"%s %s %s",
-		e.Left.ToString(),
-		e.Operator,
-		e.Right.ToString(),
-	)
-}
+	var left, right string
+	if e.Left != nil {
+		left = e.Left.ToString()
+	}
+	if e.Right != nil {
+		right = e.Right.ToString()
+	}
 
-func (e *InfixExpression) EvaluateExpr(*runtime.Scope) *runtime.Object {
-	// TODO: Evaluate by getting a function from a map[operator]func
-	// for the type of this InfixExpression (infix or prefix)
-	return nil
+	return fmt.Sprintf(
+		"(%s %s %s)",
+		left,
+		e.Operator,
+		right,
+	)
 }
 
 type ClosedExpression struct {
@@ -58,10 +49,6 @@ type ClosedExpression struct {
 
 func (e *ClosedExpression) ToString() string {
 	return fmt.Sprintf("(%s)", e.Expression.ToString())
-}
-
-func (e *ClosedExpression) EvaluateExpr(scope *runtime.Scope) *runtime.Object {
-	return e.Expression.EvaluateExpr(scope)
 }
 
 type FunctionExpression struct {
@@ -79,10 +66,6 @@ func (e *FunctionExpression) ToString() string {
 	}
 	return str + ")" + e.Body.ToString()
 }
-func (e *FunctionExpression) EvaluateExpr(scope *runtime.Scope) *runtime.Object {
-	// TODO: Evaluate
-	return nil
-}
 
 type CallExpression struct {
 	Identifier string
@@ -98,9 +81,4 @@ func (e *CallExpression) ToString() string {
 		str += arg.ToString()
 	}
 	return str + ")"
-}
-
-func (e *CallExpression) EvaluateExpr(scope *runtime.Scope) *runtime.Object {
-	// TODO: evaluate
-	return nil
 }

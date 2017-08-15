@@ -52,19 +52,15 @@ func (s *ParserScope) IsDeclared(name string) bool {
 	return false
 }
 
-type Parser struct {
-	input string
+type Parser struct{}
+
+func NewParser() *Parser {
+	return &Parser{}
 }
 
-func NewParser(input string) *Parser {
-	return &Parser{
-		input: input,
-	}
-}
+func (p *Parser) Parse(input string) (*ast.Program, error) {
 
-func (p *Parser) Parse() (*ast.Program, error) {
-
-	s := lexer.NewScanner(p.input)
+	s := lexer.NewScanner(input)
 
 	// Basic syntax
 	lSomeSpace := lexer.Regex("[\n\t\r ]+", false)
@@ -143,10 +139,16 @@ func (p *Parser) Parse() (*ast.Program, error) {
 		lFalse,      // false
 		lTrue,       // true
 		lNil,        // nil
+		lIdent,      // x
 		lExprClosed, // ( <expr> )
 	)
 
 	// Define operators for all precedence types
+	lAssignmentOperators := lexer.And(
+		lAnySpace,
+		lexer.Group("operator", lexer.Atom("=")),
+		lAnySpace,
+	)
 	lUnaryOperators := lexer.Or(
 		lexer.Atom("!"),
 		lexer.Atom("-"),
@@ -167,7 +169,6 @@ func (p *Parser) Parse() (*ast.Program, error) {
 		)),
 		lAnySpace,
 	)
-
 	lCompareOperators := lexer.And(
 		lAnySpace,
 		lexer.Group("operator", lexer.Or(
@@ -188,7 +189,8 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	)
 
 	// Declare all operators
-	var lUnary, lMultiply, lAdd, lCompare, lEquality lexer.Lexer
+	var lAssignment, lUnary, lMultiply, lAdd, lCompare, lEquality lexer.Lexer
+	lAssignment = lexer.Future(&lAssignment, "assignment")
 	lUnary = lexer.Future(&lUnary, "unary")
 	lMultiply = lexer.Future(&lMultiply, "multiply")
 	lAdd = lexer.Future(&lAdd, "add")
@@ -196,12 +198,21 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	lEquality = lexer.Future(&lEquality, "equality")
 
 	// Define all operators
+	lAssignment = lexer.And(
+		lexer.Group("left", lExprPrimitive),
+		lexer.Group("rest", lexer.Repeat(
+			lexer.And(
+				lAssignmentOperators,
+				lexer.Group("right", lExprPrimitive),
+			), 0, 1,
+		)),
+	)
 	lUnary = lexer.Group("right", lexer.Or(
 		lexer.And(
 			lUnaryOperators,
 			lUnary,
 		),
-		lExprPrimitive,
+		lAssignment,
 	))
 	lMultiply = lexer.And(
 		lexer.Group("left", lUnary),
@@ -240,10 +251,6 @@ func (p *Parser) Parse() (*ast.Program, error) {
 		)),
 	)
 
-	lExprIdentifier := lexer.Group("exprIdentifier", lIdent)
-	// lExprFunc := lexer.And(
-	// 	lKeyFunc,
-	// )
 	lExprFunc := lexer.Group("exprFunc", lexer.And(
 		lKeyFunc,   // fn
 		lAnySpace,  //
@@ -261,31 +268,42 @@ func (p *Parser) Parse() (*ast.Program, error) {
 		lExprList,
 	))
 	lExpr = lexer.Group("expression", lexer.Or(
-		lExprFunc,       // fn(a, b) { <stmts> }
-		lExprCall,       // fn(a, b)
-		lEquality,       // strings, bools, ints
-		lExprIdentifier, // e.g.: a
+		lExprFunc, // fn(a, b) { <stmts> }
+		lExprCall, // fn(a, b)
+		lEquality, // strings, bools, ints
 	))
 
 	// Statements
 	lStmtDeclare := lexer.Group("stmtDeclare", lexer.And(
-		lKeyLet,
-		lSomeSpace,
-		lIdent,
-		lAnySpace,
-		lexer.Atom("="),
-		lAnySpace,
-		lExpr,
+		lKeyLet,         // let
+		lSomeSpace,      //
+		lIdent,          // <identifier>
+		lAnySpace,       //
+		lexer.Atom("="), // =
+		lAnySpace,       //
+		lExpr,           // <expression>
 	))
 	lStmtReturn := lexer.Group("stmtReturn", lexer.And(
-		lKeyReturn,
-		lSomeSpace,
-		lExpr,
+		lKeyReturn, // return
+		lSomeSpace, //
+		lExpr,      // <expression>
+	))
+	lStmtBlock := lexer.Group("stmtBlock", lexer.And(
+		lBraceOpen,
+		lAnySpace,
+		lexer.Repeat(
+			lexer.And(
+				lStmt,
+				lAnySpace,
+			), 0, -1,
+		),
+		lBraceClose,
 	))
 	lStmtExpr := lexer.Group("stmtExpr", lexer.And(
-		lExpr,
+		lExpr, // <expression>
 	))
 	lStmt = lexer.Group("statement", lexer.Or(
+		lStmtBlock,
 		lStmtDeclare,
 		lStmtReturn,
 		lStmtExpr,
@@ -303,7 +321,7 @@ func (p *Parser) Parse() (*ast.Program, error) {
 	if lexErr != nil {
 		return nil, lexErr
 	}
-	fmt.Println(tree.String(0))
+	// fmt.Println(tree.String(0))
 
 	// Parse the tree
 	prog, parseErr := p.parseProgram(tree)
@@ -347,6 +365,8 @@ func (p *Parser) parseStatement(node *lexer.LexNode) (ast.Statement, *ParseError
 		stmt, err = p.parseDeclarationStatement(node)
 	case "stmtReturn":
 		stmt, err = p.parseReturnStatement(node)
+	case "stmtBlock":
+		stmt, err = p.parseBlockStatement(node)
 	default:
 		stmt, err = p.parseExpressionStatement(node)
 	}
@@ -444,12 +464,13 @@ func (p *Parser) parseExpression(node *lexer.LexNode) (ast.Expression, *ParseErr
 	// the positions and length of 'left' and 'rest':
 	//		5 + 5
 	//      ^ ^^^
-	leftNode := node.GroupNode("left")
-	restNode := node.GroupNode("rest")
+
+	var leftNode, restNode *lexer.LexNode
+	leftNode = node
+	restNode = nil
 
 	// We need to go deeper!
-	for restNode != nil &&
-		restNode.Value == "" &&
+	for (restNode == nil || restNode.Value == "") &&
 		leftNode.GroupExists("left") &&
 		leftNode.GroupExists("rest") {
 
@@ -460,7 +481,7 @@ func (p *Parser) parseExpression(node *lexer.LexNode) (ast.Expression, *ParseErr
 
 	// If, at this point, the rest node is blank,
 	// then we must be dealing with a primitive.
-	if restNode != nil && restNode.Value == "" {
+	if restNode == nil || restNode.Value == "" {
 		return p.parsePrimitiveExpression(leftNode)
 	}
 
