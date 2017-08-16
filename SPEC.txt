@@ -1,0 +1,151 @@
+
+Example program with static typing and no whitespace sensitivity:
+
+    let generator = fn(step: number): (fn(): number) {
+        number cur = 0
+        return fn(): number {
+            return cur += step
+        }
+    }()
+
+Example syntax with whitespace sensitivity:
+
+    let gen = generator()
+    while true:
+        print gen
+
+Example with structures:
+
+    type Example struct:
+        int x
+        string y
+    
+    mkExample[int newX, string newY]:
+        ret Example{x = newX, y = newY}
+    
+    Example ex = mkExample[5, "test"]
+
+
+
+
+SHIT I WANT:
+    TYPES:
+        integer (any length!)
+        decimal (= 2x integer, before and after decimal point)
+        string (unicode is a plus)
+        functions (with static typing!)
+        generator functions? (functions support closures so no need?..)
+        channels (for goroutine comms)
+        ...other primitives (sockets?)
+        GENERICS! would be nice to have
+        NO NIL VALUES!
+    
+    SYNTAX:
+        whitespace sensitive (optionally OR using '{' and '}')
+        very english-like for ease of use and readability:
+
+            // single-line comment
+            /*
+                did I not mention that
+                /* they can be nested? */
+            */    
+            while ... { bla bla; return ...; }
+            while ... :
+                bla bla
+                return ...
+            
+            if something { ...; }
+            if something:
+                ...
+
+            func name[int x, int y]:
+                randomBlock:
+                    while true:
+                        while true:
+                            break randomBlock
+                z := x + y        // declaration
+                z = 5             // assignment
+                let arr = @[x, y] // number[] containing x and y
+                x + y
+            
+            name[5, 6] // => 11
+
+            // syntax sugar for:
+            // let partialReturn = fn[int x, int y]:
+            //      ... function body ...
+            func partialReturn[int x, int y]:
+                let j = 0
+                j = "" // parse-time error for illegal type
+                return j
+                while j++ < y:
+                    break
+            
+            partialReturn(5, 6) // => 0
+
+            if not x or z: // if not (expr bool)
+                q++
+            
+            // I should decide on either braces {} or newlines.
+            // Probably braces. Although newlines are easier tot type...
+
+            // 
+
+
+            
+        let-statements for declaring
+            or using := syntax?
+            the type should be inferred at parse (compile) time
+        operator precedence should be as expected
+            you know, * before + and all that jazz
+        function calls 
+
+
+    
+
+    
+    
+
+    
+
+
+
+TOKENS:
+    "let"   keyword
+    "true"  bool
+    "false" bool
+    "func"
+    "("
+    ")"
+    "{"
+    "}"
+    ":"
+    "\n"    newline
+    "  "    indentation (only after newline)
+    "[\r\n\t ]+"    whitespace
+    "<"
+    ">"
+    "="
+    "!"
+    (all of the above with extra "=")
+    "+"
+    "-"
+    "*"
+    "/"
+    "[a-zA-Z]+" ident
+
+GENERAL
+    newline = "\r\n" | "\r" | "\n" | ":"
+    <math-op> := ('+' | '-' | '*' | '/')
+    <unary-op> := ('!' | '-')
+    <assign-op> := ('=')
+
+
+STATEMENTS
+    <TA> <ident> = <expr: TA>
+    return <expr>
+
+EXPRESSIONS
+    <number> := [0-9]+
+    <primitive> := (<number> | <ident>)
+    <assign> := <ident> <assign-op> <expr>
+    <expr> := (<primitive> | <assign>)
