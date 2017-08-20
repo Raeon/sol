@@ -141,6 +141,7 @@ func (p *Parser) Parse(input string) (*ast.Program, error) {
 		lNil,        // nil
 		lIdent,      // x
 		lExprClosed, // ( <expr> )
+		lExpr,
 	)
 
 	// Define operators for all precedence types
@@ -225,7 +226,7 @@ func (p *Parser) Parse(input string) (*ast.Program, error) {
 	)
 	lAdd = lexer.And(
 		lexer.Group("left", lMultiply),
-		lexer.Group("rest", lexer.Repeat( // TODO: Net zoals hierboven overal de 'right' toevoegen
+		lexer.Group("rest", lexer.Repeat(
 			lexer.And(
 				lAddOperators,
 				lexer.Group("right", lMultiply),

@@ -19,7 +19,6 @@ func NewEnv() *Environment {
 		ops["-"] = applySubtract
 		ops["*"] = applyMultiply
 		ops["/"] = applyDivide
-		ops["="] = applyAssign
 	}
 	return &Environment{
 		scope: NewScope(),
@@ -90,12 +89,28 @@ func (e *Environment) Evaluate(node ast.Node) Object {
 	panic(fmt.Sprintf("Uninterpreted AST node encountered: %s", node.ToString()))
 }
 
-func (e *Environment) applyOperator(op string, left, right ast.Expression) Object {
+func (e *Environment) applyOperator(op string, left, right ast.Node) Object {
+
+	if op == "=" {
+		return e.applyAssign(left, right)
+	}
+
 	fn, ok := ops[op]
 	if ok {
 		return fn(e.Evaluate(left), e.Evaluate(right))
 	}
 	return &Nil{}
+}
+
+func (e *Environment) applyAssign(left, right ast.Node) Object {
+	ident, ok := left.(*ast.IdentifierExpression)
+	if !ok {
+		return &Exception{
+			Message: "Can only assign to identifiers",
+		}
+	}
+
+	return e.scope.Set(ident.Literal, e.Evaluate(right))
 }
 
 func applyAdd(left, right Object) Object {
@@ -148,8 +163,4 @@ func applyDivide(left, right Object) Object {
 	}
 
 	return &Exception{Message: "Cannot divide non-numbers"}
-}
-
-func applyAssign(left, right Object) Object {
-	return left
 }

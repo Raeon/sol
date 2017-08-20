@@ -39,16 +39,16 @@ func TestParseExpressionStatement(t *testing.T) {
 		output string
 		fail   bool
 	}{
-		// {"5 + add(9, 10)", "5 + add(9, 10)", false},
-		{"5 + x", "(5 + x)", false},
-		{"{ 5 + 5 6 + 6 }", "{(5 + 5)(6 + 6)}", false},
-		{"(5 + 91) - 43", "((5 + 91) - 43)", false},
-		{"5 + 5", "(5 + 5)", false},
-		{"1 + 2 * 3", "(1 + (2 * 3))", false},
-		{"x", "x", false},
-		{"5 + 10", "(5 + 10)", false},
-		{"let x = 5", "let x = 5", false},
-		{"x = 10", "(x = 10)", false},
+		// {"5 + x", "(5 + x)", false},
+		// {"{ 5 + 5 6 + 6 }", "{(5 + 5)(6 + 6)}", false},
+		// {"(5 + 91) - 43", "((5 + 91) - 43)", false},
+		// {"5 + 5", "(5 + 5)", false},
+		// {"1 + 2 * 3", "(1 + (2 * 3))", false},
+		// {"x", "x", false},
+		// {"5 + 10", "(5 + 10)", false},
+		// {"let x = 5", "let x = 5", false},
+		// {"x = 10", "(x = 10)", false},
+		{"x = y = 5", "(x = (y = 5))", false},
 	}
 
 	for i, tt := range tests {
