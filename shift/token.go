@@ -30,6 +30,22 @@ func (tt *TokenType) NewToken(literal string, index, line, char int) *Token {
 	}
 }
 
+func (tt *TokenType) IsEqual(other Symbol) bool {
+	tokenType, ok := other.(*TokenType)
+	if !ok {
+		return false
+	}
+	return tt.name == tokenType.name
+}
+
+func (tt *TokenType) IsTerminal() bool {
+	return true
+}
+
+func (tt *TokenType) ToSymbolString() string {
+	return tt.name
+}
+
 type Token struct {
 	Literal string
 	Type    *TokenType
@@ -55,14 +71,17 @@ type Tokenizer struct {
 	next    *Token
 }
 
-func NewTokenizer(input string) *Tokenizer {
+func NewTokenizer() *Tokenizer {
 	t := &Tokenizer{
-		input:      input,
 		index:      0,
 		lineNumber: 1,
 		lineIndex:  1,
 	}
 	return t
+}
+
+func (t *Tokenizer) Type(name, pattern string, precedence int) *TokenType {
+	return t.Register(NewTokenType(name, pattern, precedence))
 }
 
 func (t *Tokenizer) Register(tta *TokenType) *TokenType {
@@ -87,6 +106,12 @@ func (t *Tokenizer) Register(tta *TokenType) *TokenType {
 	// Otherwise, append
 	t.types = append(t.types, tta)
 	return tta
+}
+
+func (t *Tokenizer) Load(input string) {
+	t.input = input
+	t.current = nil
+	t.next = nil
 }
 
 func (t *Tokenizer) Next() *Token {

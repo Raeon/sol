@@ -1,36 +1,35 @@
 package shift
 
 type Grammar struct {
-	names map[string]Symbol
-	rules map[Symbol]*Rule
+	tokenizer *Tokenizer
+	names     map[string]Symbol
+	rules     map[Symbol]*Rule
 }
 
 func NewGrammar() *Grammar {
 	return &Grammar{
-		names: make(map[string]Symbol),
-		rules: make(map[Symbol]*Rule),
+		tokenizer: NewTokenizer(),
+		names:     make(map[string]Symbol),
+		rules:     make(map[Symbol]*Rule),
 	}
 }
 
-func (g *Grammar) Declare(name string) *Rule {
+func (g *Grammar) Rule(name string, parser NodeParser) *Rule {
 	nameSym, ok := g.names[name]
 	if ok {
 		return g.rules[nameSym]
 	}
 
-	rule := NewRule(name)
-	nameSym = NewReferenceSymbol(rule)
+	rule := NewRule(name, parser)
 
-	g.names[name] = nameSym
-	g.rules[nameSym] = rule
+	g.names[name] = rule
+	g.rules[rule] = rule
 
 	return rule
 }
 
-func (g *Grammar) Define(name string, symbols ...Symbol) *Rule {
-	rule := g.Declare(name)
-	rule.AddBody(symbols...)
-	return rule
+func (g *Grammar) Token(name, pattern string, precedence int) *TokenType {
+	return g.tokenizer.Type(name, pattern, precedence)
 }
 
 func (g *Grammar) Get(name string) *Rule {
@@ -51,11 +50,11 @@ func (g *Grammar) findPermsRelative(sym Symbol, rindex int) []*Permutation {
 
 func (g *Grammar) findPermsProducing(sym Symbol) []*Permutation {
 	// Check if this is a non-terminal, which we need.
-	refSym, ok := sym.(*ReferenceSymbol)
+	rule, ok := sym.(*Rule)
 	if !ok {
 		return []*Permutation{}
 	}
 
 	// Return all permutations of this rule!
-	return refSym.rule.perms
+	return rule.perms
 }

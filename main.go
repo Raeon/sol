@@ -30,32 +30,38 @@ func main() {
 	// 	fmt.Printf("%s\n", result.ToString())
 	// }
 
-	ttZero := shift.NewTokenType("0", "0", 0)
-	ttOne := shift.NewTokenType("1", "1", 0)
-	ttPlus := shift.NewTokenType("+", "\\+", 0)
-	ttAsterisk := shift.NewTokenType("*", "\\*", 0)
-
 	g := shift.NewGrammar()
 
-	g.Define("B", shift.NewTokenSymbol(ttZero))
-	g.Define("B", shift.NewTokenSymbol(ttOne))
-	g.Define("E", shift.NewReferenceSymbol(g.Get("B")))
-	g.Define("E",
-		shift.NewReferenceSymbol(g.Get("E")),
-		shift.NewTokenSymbol(ttPlus),
-		shift.NewReferenceSymbol(g.Get("B")),
-	)
-	g.Define("E",
-		shift.NewReferenceSymbol(g.Get("E")),
-		shift.NewTokenSymbol(ttAsterisk),
-		shift.NewReferenceSymbol(g.Get("B")),
-	)
-	g.Define("S",
-		shift.NewReferenceSymbol(g.Get("E")),
-	)
+	ttZero := g.Token("0", "0", 0)
+	ttOne := g.Token("1", "1", 0)
+	ttPlus := g.Token("+", "\\+", 0)
+	ttAsterisk := g.Token("*", "\\*", 0)
+
+	rB := g.Rule("B", parseB)
+	rB.Body(ttZero)
+	rB.Body(ttOne)
+
+	rE := g.Rule("E", parseE)
+	rE.Body(rB)
+	rE.Body(rE, ttPlus, rB)
+	rE.Body(rE, ttAsterisk, rB)
+
+	rS := g.Rule("S", parseS)
+	rS.Body(rE)
 
 	b := shift.NewBuilder(g)
 	b.Build("S")
-	fmt.Println(b.ToString())
+	fmt.Printf("%s\n", b.ToString())
+}
 
+func parseS(node *shift.Node) shift.Any {
+	return nil
+}
+
+func parseE(node *shift.Node) shift.Any {
+	return nil
+}
+
+func parseB(node *shift.Node) shift.Any {
+	return nil
 }

@@ -5,41 +5,54 @@ import "fmt"
 type Closure struct {
 	perms []*Permutation
 
-	// These cells determine whether the next parser action is
-	// shift or reduce.
-	lookahead map[*TokenType]*Action
+	// Typically these cells determine whether the next parser
+	// action is shift or reduce, but at this point they can
+	// only be shifts.
+	lookaheads map[*TokenType]*Closure
 
 	// These cells show which state to advance to after
 	// some reduction's left hand side has created an
 	// expected new instance of that symbol.
-	lhsGoto map[int]int
+	gotos map[string]*Closure
 }
 
-func NewClosure(p *Permutation) *Closure {
+func NewClosure(p []*Permutation) *Closure {
 	c := &Closure{
-		perms:     []*Permutation{p},
-		lookahead: make(map[*TokenType]*Action),
-		lhsGoto:   make(map[int]int),
+		perms:      p,
+		lookaheads: make(map[*TokenType]*Closure),
+		gotos:      make(map[string]*Closure),
 	}
 	return c
 }
 
-func (c *Closure) GetNextPermutations() []*Permutation {
-	perms := []*Permutation{}
+func (c *Closure) GetNextPermutations() map[Symbol][]*Permutation {
+	// Map next symbol to list of permutations
+	perms := make(map[Symbol][]*Permutation)
+
+	// Fill the map
+outer:
 	for _, perm := range c.perms {
 		nextSym := perm.NextSymbol()
 
-		// If this is nil, ignore it
+		// If nextSym is nil, ignore this item
 		if nextSym == nil {
 			continue
 		}
 
-		// If it *IS*, then get the permutation for the
+		// If it exists, then get the permutation for the
 		// same rule body AFTER we parsed this symbol.
 		nextPerm := perm.body.perms[perm.index+1]
 
-		// And we store it in the list.
-		perms = append(perms, nextPerm)
+		// Store it in existing list if any
+		for k, v := range perms {
+			if k.IsEqual(nextSym) {
+				perms[k] = append(v, nextPerm)
+				continue outer
+			}
+		}
+
+		// Otherwise, create new list
+		perms[nextSym] = []*Permutation{nextPerm}
 	}
 	return perms
 }
@@ -68,17 +81,29 @@ func (c *Closure) ToString() string {
 		result += perm.ToString()
 	}
 
-	// Lookaheads
-	result += " ("
-	first := true
-	for tt, act := range c.lookahead {
-		if !first {
-			result += ", "
-		}
-		first = false
-		result += fmt.Sprintf("%q=%v", tt.name, act.reduce)
-	}
-	result += ")"
+	// // Lookaheads
+	// result += "\nlookahead ("
+	// first := true
+	// for tt, _ := range c.lookaheads {
+	// 	if !first {
+	// 		result += ", "
+	// 	}
+	// 	first = false
+	// 	result += tt.name
+	// }
+	// result += ")"
+
+	// // Gotos
+	// result += "\ngotos ("
+	// first = true
+	// for name, _ := range c.gotos {
+	// 	if !first {
+	// 		result += ", "
+	// 	}
+	// 	first = false
+	// 	result += name
+	// }
+	// result += ")"
 
 	return result
 }
@@ -118,82 +143,20 @@ func (p *Permutation) hasSymbolRelative(sym Symbol, rindex int) bool {
 }
 
 func (p *Permutation) fillClosure(c *Closure, b *Builder) {
-	stack := []*Permutation{}
 
 	// First we find all permutations that are comparable
 	// to the current permutation and add them recursively.
-	p.fillClosureChild(c, b, &stack)
-
-	// Then we get our own next symbol
-	nextSym := p.NextSymbol()
-
-	if nextSym == nil {
-
-		// 	// If we don't have a next symbol then we must find
-		// 	// all permutations that have consumed the same symbol
-		// 	// as we have.
-		// 	prevSym := p.PreviousSymbol()
-
-		// 	// Find all permutations that parsed this symbol
-		// 	prevPerms := b.grammar.findPermsRelative(prevSym, -1)
-		// outer1:
-		// 	for _, prevPerm := range prevPerms {
-
-		// 		// Check if we already have it
-		// 		for _, perm := range c.perms {
-		// 			if perm == prevPerm {
-		// 				continue outer1
-		// 			}
-		// 		}
-
-		// 		// Add it
-		// 		c.perms = append(c.perms, prevPerm)
-		// 	}
-
-		return
-	}
-
-	// We want to add all permutations that produce the same
-	// symbol next as this current permutation.
-	nextPerms := b.grammar.findPermsRelative(nextSym, 0)
-
-	// And add them to the closure provided they aren't in it yet
-outer2:
-	for _, nextPerm := range nextPerms {
-
-		// Don't add if already in it
-		for _, perm := range c.perms {
-			if perm == nextPerm {
-				continue outer2
-			}
-		}
-
-		// Add to closure
-		c.perms = append(c.perms, nextPerm)
-
-		// And apply the recursiveness again
-		nextPerm.fillClosureChild(c, b, &stack)
-	}
+	p.fillClosureChild(c, b)
 
 }
 
-func (p *Permutation) fillClosureChild(c *Closure, b *Builder, s *[]*Permutation) {
-
-	// Check if we are looping
-	for _, perm := range *s {
-		if perm == p {
-			return
-		}
-	}
+func (p *Permutation) fillClosureChild(c *Closure, b *Builder) {
 
 	// Get our own next symbol
 	nextSym := p.NextSymbol()
 	if nextSym == nil {
 		return
 	}
-
-	// Add ourselves to the stack
-	*s = append(*s, p)
 
 	// Find all perms that produce our next symbol and are
 	// at rindex=0
@@ -217,7 +180,7 @@ outer:
 		c.perms = append(c.perms, producer)
 
 		// Recurse
-		producer.fillClosureChild(c, b, s)
+		producer.fillClosureChild(c, b)
 	}
 
 }
@@ -261,11 +224,11 @@ func (p *Permutation) ToString() string {
 		if i != 0 && i != p.index {
 			result += " "
 		}
-		result += sym.ToString()
+		result += sym.ToSymbolString()
 	}
 	if p.index == len(p.body.symbols) {
 		result += " ."
 	}
 
-	return fmt.Sprintf("%s = %s (%d)", p.body.rule.name, result, p.index)
+	return fmt.Sprintf("%s = %s", p.body.rule.name, result)
 }

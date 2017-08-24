@@ -13,7 +13,8 @@ func TestFetch(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		tz := NewTokenizer(tt.input)
+		tz := NewTokenizer()
+		tz.Load(tt.input)
 		tz.Register(NewTokenType("", tt.pattern, 0))
 		tz.fetch()
 		tz.fetch()
@@ -44,7 +45,8 @@ func TestPrecedence(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		tz := NewTokenizer(tt.input)
+		tz := NewTokenizer()
+		tz.Load(tt.input)
 		tz.Register(NewTokenType("first", tt.firstPatt, tt.firstPrec))
 		tz.Register(NewTokenType("second", tt.secondPatt, tt.secondPrec))
 		tz.fetch()
@@ -80,7 +82,8 @@ func TestRepetition(t *testing.T) {
 	}
 
 	for i, tt := range tests {
-		tz := NewTokenizer(tt.input)
+		tz := NewTokenizer()
+		tz.Load(tt.input)
 		tz.Register(NewTokenType("a", tt.pattern, 10))
 		tz.Register(NewTokenType("eof", "$", 0))
 		tz.fetch()

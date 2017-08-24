@@ -1,15 +1,15 @@
 package shift
 
-import (
-	"fmt"
-)
-
 /* TODO: Write generator that creates a table */
 type Builder struct {
-	grammar     *Grammar
-	table       *Table
+	grammar *Grammar
+	table   *Table
+
 	closureMap  map[*Permutation]*Closure
 	closureList []*Closure
+
+	stateByID      map[int]*State
+	stateByClosure map[*Closure]*State
 }
 
 func NewBuilder(grammar *Grammar) *Builder {
@@ -34,86 +34,116 @@ func (b *Builder) Build(rootRule string) *Table {
 	}
 	body := rule.bodies[0]
 
+	// Fail if body.perms count != 1
+	if len(body.perms) < 1 {
+		panic("Root rule must have at least 1 symbol")
+	}
+
 	// Get closure from the rule body and map the
-	// permutations to the closure to prevent duplicate closures
+	// permutations to the closure to prevent duplicate closures.
 
 	// From this point out we start traversing the state tree.
 	// We iterate over all upcoming terminal symbols in the closure.
 	// For every terminal symbol we then proceed to grab and register
 	// the closure of the state *after* that terminal symbol is parsed.
 
-	// TODO: Make sure body has at least 1 symbol and therefore
-	// also at least one permutation
-	b.buildChildClosures(body.perms[0])
+	// Build closure for the first permutation
+	b.buildChildClosures([]*Permutation{body.perms[0]})
+
+	// We map every Closure to a State, and every ID to a State.
+	b.stateByClosure = make(map[*Closure]*State)
+	b.stateByID = make(map[int]*State)
+
+	// Next, we map every found closure to a corresponding State.
+	for id, closure := range b.closureList {
+		state := NewState(id)
+		state.closure = closure // TODO: remove after debugging
+
+		// Keep references to this state
+		b.stateByID[id] = state
+		b.stateByClosure[closure] = state
+
+		// Put state in parse table
+		b.table.states[id] = state
+	}
+
+	// Assign the closure *after* parsing the root node an
+	// Accept action to accept the given input on EOF
+	successClosure := b.closureMap[body.perms[1]]
+	successState := b.stateByClosure[successClosure]
+	successState.lookaheads[nil] = NewAcceptAction()
+
+	// Once that's done, we can substitute all Closure
+	// references with the newly assigned IDs.
+	for closure, state := range b.stateByClosure {
+		state.Fill(b, closure)
+	}
 
 	return b.table
 }
 
-func (b *Builder) buildChildClosures(perm *Permutation) *Closure {
-	str := perm.ToString()
-	closure, ok := b.closureMap[perm]
-	if ok {
-		// We already have this closure! Ignore it.
-		str := closure.ToString()
-		fmt.Sprintf(str)
-		return closure
-	}
-	fmt.Sprintf(str)
+func (b *Builder) buildChildClosures(perms []*Permutation) *Closure {
 
-	// Construct the closure for this terminal
-	closure = NewClosure(perm)
-	perm.fillClosure(closure, b)
+	// Check if we already have a closure for these perms
+	for _, perm := range perms {
+		closure, ok := b.closureMap[perm]
+		if ok {
+			return closure
+		}
+	}
+
+	// Construct the closure for these items
+	closure := NewClosure(perms)
+
+	// Fill the closure with derived items
+	for _, perm := range perms {
+
+		// Prevent duplicate closures by mapping a permutation
+		// to the current closure
+		b.closureMap[perm] = closure
+
+		// Fill the closure using items derived from
+		// the current base item
+		perm.fillClosure(closure, b)
+	}
+
+	// Store the closure in a list for debugging?
 	b.closureList = append(b.closureList, closure)
 
-	// Link all the permutations to the closure to prevent
-	// building their closures multiple times
-	b.closureMap[closure.perms[0]] = closure
-
 	// Next, we fetch all possible valid symbols that
-	// this closure can parse and fetch the closures that
+	// this closure can parse and construct the closure that
 	// belong to the states after we parse those symbols.
-	nextPerms := closure.GetNextPermutations()
-	for _, nextPerm := range nextPerms {
+	nextPermMap := closure.GetNextPermutations()
+	for nextSymbol, nextPerms := range nextPermMap {
 
-		// // Get the symbol that this permutation has just consumed
-		// prevSymbol := nextPerm.PreviousSymbol()
-		// prevTerminal, ok := prevSymbol.(*TokenSymbol)
+		// Fetch the child closure for the new base items
+		// that match the next parseable symbol
+		childClosure := b.buildChildClosures(nextPerms)
 
-		// // If it wasn't a terminal we ignore it
-		// if !ok {
-		// 	continue
-		// }
-
-		// Get the symbol we just jumped over
-		str := nextPerm.ToString()
-		fmt.Sprintf(str)
-		prevSymbol := nextPerm.PreviousSymbol()
-		prevTerminal, isTerminal := prevSymbol.(*TokenSymbol)
-
-		// Build the closure for this new found state
-		childClosure := b.buildChildClosures(nextPerm)
-
-		// If the previous symbol was a terminal as far as we know, then
-		// we will register an action in the current closure for shifting
-		// to the child closure upon parsing said terminal symbol.
-		if isTerminal {
-			closure.lookahead[prevTerminal.tokenType] = NewShiftAction(childClosure)
+		// Add a shift action from the current closure
+		// with the given terminal symbol to the child closure.
+		if nextSymbol.IsTerminal() {
+			tokenType, _ := nextSymbol.(*TokenType)
+			closure.lookaheads[tokenType] = childClosure
+		} else {
+			rule, _ := nextSymbol.(*Rule)
+			closure.gotos[rule.name] = childClosure
 		}
-
 	}
 
 	return closure
 }
 
 func (b *Builder) ToString() string {
-	result := ""
-	for i, closure := range b.closureList {
-		if i != 0 {
-			result += "\n"
-		}
-		result += closure.ToString() + "\n"
-	}
-	return result
+	// result := ""
+	// for i, closure := range b.closureList {
+	// 	if i != 0 {
+	// 		result += "\n"
+	// 	}
+	// 	result += closure.ToString() + "\n"
+	// }
+	// return result
+	return b.table.ToString()
 }
 
 /*

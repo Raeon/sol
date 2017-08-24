@@ -6,16 +6,18 @@ type Rule struct {
 	name   string
 	bodies []*RuleBody
 	perms  []*Permutation
+	parser NodeParser
 }
 
-func NewRule(name string) *Rule {
+func NewRule(name string, parser NodeParser) *Rule {
 	return &Rule{
 		name:   name,
 		bodies: []*RuleBody{},
+		parser: parser,
 	}
 }
 
-func (r *Rule) AddBody(symbols ...Symbol) *RuleBody {
+func (r *Rule) Body(symbols ...Symbol) *RuleBody {
 	body := NewBody(r, symbols...)
 	r.bodies = append(r.bodies, body)
 	r.perms = append(r.perms, body.perms...)
@@ -28,6 +30,22 @@ func (r *Rule) findPermsRelative(sym Symbol, rindex int) []*Permutation {
 		results = append(results, body.findPermsRelative(sym, rindex)...)
 	}
 	return results
+}
+
+func (r *Rule) IsTerminal() bool {
+	return false
+}
+
+func (r *Rule) IsEqual(other Symbol) bool {
+	o, ok := other.(*Rule)
+	if !ok {
+		return false
+	}
+	return o.name == r.name
+}
+
+func (r *Rule) ToSymbolString() string {
+	return r.name
 }
 
 func (r *Rule) ToString() string {
@@ -78,7 +96,7 @@ func (b *RuleBody) ToString() string {
 		if i != 0 {
 			result += " "
 		}
-		result += sym.ToString()
+		result += sym.ToSymbolString()
 	}
 	return fmt.Sprintf("%s = %s", b.rule.name, result)
 }
