@@ -13,7 +13,15 @@ const (
 /* TODO: Write table that holds instructions for parser */
 type Action struct {
 	actionType ActionType
-	stateID    int
+
+	// In the case of a shift, we store the stateID to shift to
+	stateID int
+
+	// Reduces require the reducer, the amount of nodes to
+	// reduce by, and the name of the reducing rule.
+	reducer     NodeReducer
+	reduceCount int
+	ruleName    string
 }
 
 func NewShiftAction(state *State) *Action {
@@ -23,10 +31,12 @@ func NewShiftAction(state *State) *Action {
 	}
 }
 
-func NewReduceAction(state *State) *Action {
+func NewReduceAction(body *RuleBody) *Action {
 	return &Action{
-		actionType: Reduce,
-		stateID:    state.id,
+		actionType:  Reduce,
+		reducer:     body.rule.parser,
+		reduceCount: len(body.symbols),
+		ruleName:    body.rule.name,
 	}
 }
 
@@ -88,7 +98,7 @@ func (s *State) ToString() string {
 		result += "  " + name + "="
 		if action.actionType == Reduce {
 			result += "r"
-			result += fmt.Sprintf("%d\n", action.stateID)
+			result += fmt.Sprintf("%s\n", action.ruleName)
 		} else if action.actionType == Shift {
 			result += "s"
 			result += fmt.Sprintf("%d\n", action.stateID)

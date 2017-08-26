@@ -6,10 +6,10 @@ type Rule struct {
 	name   string
 	bodies []*RuleBody
 	perms  []*Permutation
-	parser NodeParser
+	parser NodeReducer
 }
 
-func NewRule(name string, parser NodeParser) *Rule {
+func NewRule(name string, parser NodeReducer) *Rule {
 	return &Rule{
 		name:   name,
 		bodies: []*RuleBody{},

@@ -57,6 +57,17 @@ outer:
 	return perms
 }
 
+func (c *Closure) getCompletedRuleBody() *RuleBody {
+	if len(c.perms) != 1 {
+		return nil
+	}
+	perm := c.perms[0]
+	if perm.NextSymbol() != nil {
+		return nil
+	}
+	return perm.body
+}
+
 func (c *Closure) Contains(p *Permutation) bool {
 	for _, perm := range c.perms {
 		if perm == p {

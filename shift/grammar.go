@@ -1,5 +1,7 @@
 package shift
 
+import "fmt"
+
 type Grammar struct {
 	tokenizer *Tokenizer
 	names     map[string]Symbol
@@ -14,7 +16,7 @@ func NewGrammar() *Grammar {
 	}
 }
 
-func (g *Grammar) Rule(name string, parser NodeParser) *Rule {
+func (g *Grammar) Rule(name string, parser NodeReducer) *Rule {
 	nameSym, ok := g.names[name]
 	if ok {
 		return g.rules[nameSym]
@@ -30,6 +32,13 @@ func (g *Grammar) Rule(name string, parser NodeParser) *Rule {
 
 func (g *Grammar) Token(name, pattern string, precedence int) *TokenType {
 	return g.tokenizer.Type(name, pattern, precedence)
+}
+
+func (g *Grammar) Parser(rootRule string) *Parser {
+	b := NewBuilder(g)
+	tbl := b.Build(rootRule)
+	fmt.Println(b.ToString())
+	return newParser(tbl, b.grammar.tokenizer)
 }
 
 func (g *Grammar) Get(name string) *Rule {

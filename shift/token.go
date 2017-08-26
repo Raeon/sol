@@ -112,6 +112,8 @@ func (t *Tokenizer) Load(input string) {
 	t.input = input
 	t.current = nil
 	t.next = nil
+	t.fetch()
+	t.fetch()
 }
 
 func (t *Tokenizer) Next() *Token {

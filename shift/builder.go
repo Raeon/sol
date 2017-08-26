@@ -1,5 +1,7 @@
 package shift
 
+import "fmt"
+
 /* TODO: Write generator that creates a table */
 type Builder struct {
 	grammar *Grammar
@@ -76,9 +78,32 @@ func (b *Builder) Build(rootRule string) *Table {
 	// Once that's done, we can substitute all Closure
 	// references with the newly assigned IDs.
 	for closure, state := range b.stateByClosure {
+
+		// Fill the lookaheads and gotos from the Closure
 		state.Fill(b, closure)
+
+		// Get a completed rule body
+		body := closure.getCompletedRuleBody()
+		if body != nil && state != successState {
+			// If it exists, map all known token types to reduce action
+			action := NewReduceAction(body)
+
+			for _, tt := range b.grammar.tokenizer.types {
+				// Log if any given action is already a reduce
+				before, ok := state.lookaheads[tt]
+				if ok {
+					fmt.Printf("overriding action: type=%q, id=%d, name=%s",
+						before.actionType, before.stateID, before.ruleName)
+				}
+				state.lookaheads[tt] = action
+			}
+			// EOF also!
+			state.lookaheads[nil] = action
+		}
+
 	}
 
+	// Return the now ready-to-use parsing table!
 	return b.table
 }
 

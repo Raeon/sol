@@ -32,26 +32,39 @@ func main() {
 
 	g := shift.NewGrammar()
 
-	ttZero := g.Token("0", "0", 0)
-	ttOne := g.Token("1", "1", 0)
+	ttInt := g.Token("int", "[0-9]+", 0)
+	ttID := g.Token("id", "[a-zA-Z]+", 0)
 	ttPlus := g.Token("+", "\\+", 0)
 	ttAsterisk := g.Token("*", "\\*", 0)
 
-	rB := g.Rule("B", parseB)
-	rB.Body(ttZero)
-	rB.Body(ttOne)
+	//ttEqual := g.Token("=", "=", 0)
 
-	rE := g.Rule("E", parseE)
-	rE.Body(rB)
-	rE.Body(rE, ttPlus, rB)
-	rE.Body(rE, ttAsterisk, rB)
+	rValue := g.Rule("value", parseB)
+	rValue.Body(ttInt)
+	rValue.Body(ttID)
 
-	rS := g.Rule("S", parseS)
-	rS.Body(rE)
+	rProducts := g.Rule("products", parseB)
+	rProducts.Body(rProducts, ttAsterisk, rValue)
+	rProducts.Body(rValue)
 
-	b := shift.NewBuilder(g)
-	b.Build("S")
-	fmt.Printf("%s\n", b.ToString())
+	rSums := g.Rule("sums", parseB)
+	rSums.Body(rSums, ttPlus, rProducts)
+	rSums.Body(rProducts)
+
+	rGoal := g.Rule("goal", parseB)
+	rGoal.Body(rSums)
+
+	// b := shift.NewBuilder(g)
+	// tbl := b.Build("S'")
+	// fmt.Println(tbl.ToString())
+
+	parser := g.Parser("goal")
+	node, err := parser.Parse("5 + 5")
+	if err != nil {
+		fmt.Printf("error: %s\n", err.Error())
+	} else {
+		fmt.Printf("success: %s\n", node.ToString())
+	}
 }
 
 func parseS(node *shift.Node) shift.Any {
